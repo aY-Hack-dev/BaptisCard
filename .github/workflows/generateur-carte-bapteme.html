@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Générateur de Carte de Baptême — Assemblées de Dieu</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --blue-deep:#0e2e6b;
+    --blue-mid:#153a82;
+    --gold:#e3ab35;
+    --paper:#eef2f8;
+    --line:#aebedb;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Arial Narrow', Arial, sans-serif;
+    background:linear-gradient(160deg,#eef2f9,#dbe4f3);
+    min-height:100vh;
+    padding:24px 12px 60px;
+    color:#1a1a1a;
+  }
+  h1{
+    text-align:center;
+    color:var(--blue-deep);
+    font-size:1.4rem;
+    margin:0 0 4px;
+    font-family:Arial, sans-serif;
+  }
+  .sub{
+    text-align:center;
+    color:#5a6a8a;
+    font-size:.85rem;
+    margin-bottom:24px;
+    font-family:Arial, sans-serif;
+  }
+  .wrap{
+    max-width:1250px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:24px;
+  }
+  @media(min-width:1150px){
+    .wrap{grid-template-columns:360px 1fr;align-items:start;}
+  }
+
+  /* ---- FORM PANEL ---- */
+  .panel{
+    background:#fff;
+    border-radius:16px;
+    padding:20px;
+    box-shadow:0 6px 24px rgba(11,42,99,.1);
+    font-family:Arial, sans-serif;
+  }
+  .panel h2{
+    font-size:1rem;
+    color:var(--blue-deep);
+    margin:0 0 14px;
+    border-bottom:2px solid var(--gold);
+    padding-bottom:8px;
+  }
+  label{
+    display:block;
+    font-size:.78rem;
+    font-weight:600;
+    color:var(--blue-mid);
+    margin:12px 0 4px;
+  }
+  input[type=text]{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid #cfd8e8;
+    border-radius:8px;
+    font-size:.9rem;
+    font-family:Arial, sans-serif;
+  }
+  input:focus{outline:2px solid var(--gold);border-color:var(--gold);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .filebtn{
+    display:block;
+    width:100%;
+    padding:9px;
+    border:1px dashed var(--blue-mid);
+    border-radius:8px;
+    background:#f4f7fb;
+    color:var(--blue-mid);
+    font-size:.82rem;
+    text-align:center;
+    cursor:pointer;
+    margin-top:4px;
+  }
+  input[type=file]{display:none;}
+  .actions{
+    margin-top:20px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  button.primary{
+    background:var(--blue-deep);
+    color:#fff;
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    font-size:.95rem;
+    font-weight:700;
+    cursor:pointer;
+    letter-spacing:.3px;
+  }
+  button.primary:hover{background:var(--blue-mid);}
+  button.secondary{
+    background:#fff;
+    border:1.5px solid var(--blue-deep);
+    color:var(--blue-deep);
+    padding:11px;
+    border-radius:10px;
+    font-size:.9rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .hint{font-size:.72rem;color:#8592ad;margin-top:14px;line-height:1.4;}
+
+  /* ---- CARD PREVIEW ---- */
+  .stage{
+    display:flex;
+    justify-content:center;
+    overflow-x:auto;
+    padding:4px;
+  }
+
+  /* Card fixed at reference size 1548x1023 (same ratio as source image) */
+  #card{
+    width:1548px;
+    height:1023px;
+    flex-shrink:0;
+    background:#fff;
+    border-radius:34px;
+    overflow:hidden;
+    box-shadow:0 14px 50px rgba(11,42,99,.28);
+    position:relative;
+    font-family:Arial, Helvetica, sans-serif;
+  }
+  @media(max-width:1600px){
+    .stage{transform-origin:top center;}
+  }
+
+  /* ===== HEADER ===== */
+  .header{
+    position:relative;
+    height:200px;
+    background:var(--blue-deep);
+    overflow:hidden;
+  }
+  .header-diagfill{
+    position:absolute;
+    top:0; right:0; bottom:0;
+    width:56%;
+    background:var(--paper);
+    clip-path:polygon(28% 0, 100% 0, 100% 100%, 0% 100%);
+  }
+  .header-diagfill::before{
+    content:"";
+    position:absolute;
+    top:0; left:-6px; bottom:0;
+    width:8px;
+    background:#fff;
+    transform:skewX(-18deg);
+  }
+  .header-gold-curve{
+    position:absolute;
+    left:14%;
+    bottom:26px;
+    width:44%;
+    height:26px;
+    border-bottom:5px solid var(--gold);
+    border-radius:0 0 60% 0;
+  }
+
+  .badge{
+    position:absolute;
+    left:28px; top:22px;
+    width:150px; height:150px;
+    z-index:3;
+  }
+  .badge-shield{
+    width:100%; height:100%;
+    background:var(--blue-deep);
+    border:3px solid #fff;
+    border-radius:10px 10px 0 0;
+    clip-path:polygon(0 0,100% 0,100% 72%,50% 100%,0 72%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding-top:8px;
+  }
+  .badge-shield .label{
+    color:#fff;
+    font-size:9px;
+    font-weight:800;
+    letter-spacing:.5px;
+    text-align:center;
+    line-height:1.2;
+  }
+  .badge-inner{
+    margin-top:6px;
+    background:#fff;
+    border-radius:4px;
+    padding:2px 10px;
+    color:var(--blue-deep);
+    font-size:8px;
+    font-weight:800;
+    text-align:center;
+    line-height:1.15;
+  }
+  .badge-ad{
+    margin-top:6px;
+    color:#fff;
+    font-weight:900;
+    font-size:34px;
+    letter-spacing:1px;
+    font-style:italic;
+  }
+
+  .header-title{
+    position:absolute;
+    left:200px; top:30px;
+    z-index:3;
+  }
+  .header-title .assn{
+    color:#fff;
+    font-weight:900;
+    font-size:44px;
+    letter-spacing:.5px;
+    margin:0;
+    font-family:'Arial Black', Arial, sans-serif;
+    white-space:nowrap;
+  }
+  .header-title .tag{
+    color:var(--gold);
+    font-size:19px;
+    font-weight:700;
+    letter-spacing:2px;
+    margin-top:6px;
+  }
+
+  .header-right{
+    position:absolute;
+    right:44px; top:64px;
+    z-index:3;
+    text-align:right;
+  }
+  .header-right h2{
+    color:var(--blue-deep);
+    font-size:40px;
+    font-weight:900;
+    margin:0;
+    letter-spacing:.3px;
+    font-family:'Arial Black', Arial, sans-serif;
+    white-space:nowrap;
+  }
+
+  /* ===== BODY ===== */
+  .body{
+    position:relative;
+    height:625px;
+    background:var(--paper);
+    padding:34px 44px 0;
+  }
+  .watermark{
+    position:absolute;
+    right:44px; top:20px;
+    width:340px;
+    opacity:.07;
+    font-weight:900;
+    color:var(--blue-deep);
+    font-size:26px;
+    text-align:center;
+    line-height:1.3;
+    pointer-events:none;
+    user-select:none;
+  }
+  .body-grid{
+    position:relative;
+    z-index:2;
+    display:grid;
+    grid-template-columns:410px 1fr;
+    gap:40px;
+    height:100%;
+  }
+  .photo-box{
+    width:410px;
+    height:490px;
+    border-radius:18px;
+    border:1px solid var(--line);
+    overflow:hidden;
+    background:#dbe4f3;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#8592ad;
+    font-size:1rem;
+    font-family:Arial, sans-serif;
+  }
+  .photo-box img{width:100%;height:100%;object-fit:cover;display:block;}
+
+  .fields{padding-top:4px;}
+  .fields .f{
+    display:grid;
+    grid-template-columns:230px 20px 1fr;
+    gap:2px;
+    padding:11px 0;
+    border-bottom:1px dashed var(--line);
+    align-items:baseline;
+  }
+  .fields .f .lab{
+    color:var(--blue-mid);
+    font-weight:700;
+    font-size:22px;
+  }
+  .fields .f .colon{color:var(--blue-mid);font-weight:700;font-size:22px;}
+  .fields .f .val{
+    font-weight:700;
+    font-size:22px;
+    color:#111;
+  }
+  .verse-line{
+    color:var(--blue-mid);
+    font-weight:700;
+    font-size:22px;
+    padding:12px 0 10px;
+    border-bottom:1px dashed var(--line);
+  }
+
+  .sign-area{
+    position:absolute;
+    left:454px; bottom:14px;
+    z-index:2;
+  }
+  .sign-img{
+    height:70px;
+    width:280px;
+    display:flex;
+    align-items:flex-end;
+    padding-left:6px;
+  }
+  .sign-img img{max-height:68px;max-width:270px;}
+  .sign-line{
+    border-top:2px solid var(--blue-mid);
+    width:280px;
+    margin-top:2px;
+    padding-top:6px;
+    font-size:18px;
+    font-weight:700;
+    color:var(--blue-mid);
+    text-align:center;
+  }
+
+  /* ===== FOOTER ===== */
+  .footer{
+    height:198px;
+    background:var(--blue-deep);
+    position:relative;
+    padding:26px 44px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    color:#fff;
+    overflow:hidden;
+  }
+  .dove{
+    font-size:44px;
+    flex-shrink:0;
+  }
+  .divider{
+    width:2px;
+    align-self:stretch;
+    background:rgba(255,255,255,.35);
+    flex-shrink:0;
+  }
+  .verse{
+    font-size:19px;
+    line-height:1.4;
+    max-width:640px;
+  }
+  .verse b{color:var(--gold); display:block; margin-top:4px; font-size:20px;}
+  .deliv{
+    margin-left:auto;
+    text-align:right;
+    z-index:2;
+  }
+  .deliv .l1{font-size:18px;color:#dfe6f5;}
+  .deliv .l2{font-size:26px;font-weight:800;color:var(--gold);margin-top:2px;}
+  .footer-gold-curve{
+    position:absolute;
+    right:0; bottom:18px;
+    width:220px; height:40px;
+    border-bottom:5px solid var(--gold);
+    border-radius:0 0 0 60%;
+  }
+
+  @media(max-width:1600px){
+    .stage-scaler{
+      transform:scale(var(--s,1));
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>Générateur de Carte de Baptême</h1>
+<div class="sub">Assemblées de Dieu — Tout l'Évangile — Format identique au modèle original</div>
+
+<div class="wrap">
+  <!-- FORM -->
+  <div class="panel">
+    <h2>Informations</h2>
+
+    <label for="nom">Nom</label>
+    <input type="text" id="nom" value="DIARRA">
+
+    <label for="prenom">Prénom(s)</label>
+    <input type="text" id="prenom" value="Adama Yacouba">
+
+    <div class="row2">
+      <div>
+        <label for="naissance">Né(e) le</label>
+        <input type="text" id="naissance" value="14 mars 2003">
+      </div>
+      <div>
+        <label for="lieuNaissance">À</label>
+        <input type="text" id="lieuNaissance" value="Ouagadougou">
+      </div>
+    </div>
+
+    <label for="eglise">Église</label>
+    <input type="text" id="eglise" value="Assemblées de Dieu – Centre de Grâce">
+
+    <div class="row2">
+      <div>
+        <label for="dateBapteme">Baptisé(e) le</label>
+        <input type="text" id="dateBapteme" value="18 mai 2025">
+      </div>
+      <div>
+        <label for="pasteur">Par le pasteur</label>
+        <input type="text" id="pasteur" value="Jean-Baptiste Kaboré">
+      </div>
+    </div>
+
+    <label for="delivree">Délivrée le</label>
+    <input type="text" id="delivree" value="18 mai 2025">
+
+    <h2 style="margin-top:22px;">Photo & signature</h2>
+
+    <label>Photo du/de la baptisé(e)</label>
+    <label class="filebtn" for="photoInput">📷 Choisir une photo</label>
+    <input type="file" id="photoInput" accept="image/*">
+
+    <label>Signature du pasteur (image, optionnel)</label>
+    <label class="filebtn" for="signInput">✍️ Choisir une signature</label>
+    <input type="file" id="signInput" accept="image/*">
+
+    <div class="actions">
+      <button class="primary" id="downloadBtn">⬇️ Télécharger la carte (PNG)</button>
+      <button class="secondary" id="printBtn">🖨️ Imprimer</button>
+    </div>
+    <div class="hint">La carte fait 1548 × 1023 px (même ratio que le modèle d'origine). Le PNG téléchargé est en haute résolution (×3), prêt pour l'impression.</div>
+  </div>
+
+  <!-- CARD -->
+  <div class="stage">
+    <div id="card">
+      <div class="header">
+        <div class="header-diagfill"></div>
+        <div class="header-gold-curve"></div>
+
+        <div class="badge">
+          <div class="badge-shield">
+            <div class="label">ASSEMBLEES<br>DE DIEU</div>
+            <div class="badge-inner">Tout<br>L'Evangile</div>
+            <div class="badge-ad">AD</div>
+          </div>
+        </div>
+
+        <div class="header-title">
+          <p class="assn">ASSEMBLEES DE DIEU</p>
+          <div class="tag">— Tout L'Evangile —</div>
+        </div>
+
+        <div class="header-right">
+          <h2>CARTE DE BAPTÊME</h2>
+        </div>
+      </div>
+
+      <div class="body">
+        <div class="watermark">ASSEMBLEES DE DIEU</div>
+        <div class="body-grid">
+          <div class="photo-box" id="photoBox">Photo</div>
+
+          <div class="fields">
+            <div class="f"><div class="lab">Nom :</div><div class="colon">:</div><div class="val" id="out-nom">DIARRA</div></div>
+            <div class="f"><div class="lab">Prénom (s) :</div><div class="colon">:</div><div class="val" id="out-prenom">ADAMA YACOUBA</div></div>
+            <div class="f"><div class="lab">Né (e) le :</div><div class="colon">:</div><div class="val" id="out-naissance">14 MARS 2003</div></div>
+            <div class="f"><div class="lab">À :</div><div class="colon">:</div><div class="val" id="out-lieu">OUAGADOUGOU</div></div>
+            <div class="f"><div class="lab">Église :</div><div class="colon">:</div><div class="val" id="out-eglise">ASSEMBLÉES DE DIEU – CENTRE DE GRÂCE</div></div>
+            <div class="verse-line">A été baptisé(e) d'eau au nom du père, du fils et du Saint-Esprit,</div>
+            <div class="f"><div class="lab">Le :</div><div class="colon">:</div><div class="val" id="out-dateBapteme">18 MAI 2025</div></div>
+            <div class="f" style="border-bottom:none;"><div class="lab">Par le pasteur :</div><div class="colon">:</div><div class="val" id="out-pasteur">PASTEUR JEAN-BAPTISTE KABORÉ</div></div>
+          </div>
+        </div>
+
+        <div class="sign-area">
+          <div class="sign-img" id="signImgBox"></div>
+          <div class="sign-line">Signature du pasteur</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="footer-gold-curve"></div>
+        <div class="dove">🕊️</div>
+        <div class="divider"></div>
+        <div class="verse">« Allez, faites de toutes les nations des disciples,<br>les baptisant au nom du Père, du Fils et du Saint-Esprit. »<b>Matthieu 28:19</b></div>
+        <div class="deliv">
+          <div class="l1">Délivrée le</div>
+          <div class="l2" id="out-delivree">18 MAI 2025</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fields = ['nom','prenom','naissance','lieuNaissance','eglise','dateBapteme','pasteur','delivree'];
+
+function updateCard(){
+  document.getElementById('out-nom').textContent = document.getElementById('nom').value.toUpperCase() || '—';
+  document.getElementById('out-prenom').textContent = (document.getElementById('prenom').value || '—').toUpperCase();
+  document.getElementById('out-naissance').textContent = (document.getElementById('naissance').value || '—').toUpperCase();
+  document.getElementById('out-lieu').textContent = (document.getElementById('lieuNaissance').value || '—').toUpperCase();
+  document.getElementById('out-eglise').textContent = (document.getElementById('eglise').value || '—').toUpperCase();
+  document.getElementById('out-dateBapteme').textContent = (document.getElementById('dateBapteme').value || '—').toUpperCase();
+  const pasteurVal = document.getElementById('pasteur').value;
+  document.getElementById('out-pasteur').textContent = pasteurVal ? ('PASTEUR ' + pasteurVal.toUpperCase().replace(/^PASTEUR\s*/i,'')) : '—';
+  document.getElementById('out-delivree').textContent = (document.getElementById('delivree').value || '—').toUpperCase();
+}
+fields.forEach(id=>{
+  document.getElementById(id).addEventListener('input', updateCard);
+});
+updateCard();
+
+document.getElementById('photoInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    document.getElementById('photoBox').innerHTML = '<img src="'+ev.target.result+'" alt="Photo">';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('signInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    document.getElementById('signImgBox').innerHTML = '<img src="'+ev.target.result+'" alt="Signature">';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('downloadBtn').addEventListener('click', function(){
+  const card = document.getElementById('card');
+  html2canvas(card, {scale:3, useCORS:true, backgroundColor:'#ffffff', width:1548, height:1023}).then(canvas=>{
+    const link = document.createElement('a');
+    const nom = (document.getElementById('nom').value || 'carte').replace(/\s+/g,'_');
+    link.download = 'carte_bapteme_' + nom + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+});
+
+document.getElementById('printBtn').addEventListener('click', function(){
+  window.print();
+});
+
+// Responsive scaling for smaller screens: keep the card at native size but shrink visually via CSS transform + wrapper height correction
+function fitCard(){
+  const stage = document.querySelector('.stage');
+  const card = document.getElementById('card');
+  const availableWidth = stage.clientWidth - 8;
+  const scale = Math.min(1, availableWidth / 1548);
+  card.style.transform = 'scale(' + scale + ')';
+  card.style.transformOrigin = 'top left';
+  stage.style.height = (1023 * scale) + 'px';
+}
+window.addEventListener('resize', fitCard);
+window.addEventListener('load', fitCard);
+setTimeout(fitCard, 50);
+</script>
+
+</body>
+</html>
