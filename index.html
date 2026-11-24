@@ -357,6 +357,7 @@
 
 <div id="toast" class="toast"></div>
 
+<script defer src="./vendor/jszip.min.js"></script>
 <script>
 /* ============================================================
    CONFIG — Cloudinary (upload non signé) + JSONBin
@@ -1689,9 +1690,10 @@ function renderCartes(root) {
           ${state.data.eglises.map((e) => `<option value="${e.id}">${escapeXml(e.nom)}</option>`).join('')}
         </select>
       </div>
-      <div id="cartes-bulk-bar" style="display:none; align-items:center; justify-content:space-between; background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin-bottom:12px;">
-        <span id="cartes-bulk-count" style="font-size:12.5px; font-weight:600; color:var(--navy);"></span>
+      <div id="cartes-bulk-bar" style="display:none; flex-wrap:wrap; gap:8px; align-items:center; background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin-bottom:12px;">
+        <span id="cartes-bulk-count" style="flex-basis:100%; font-size:12.5px; font-weight:600; color:var(--navy);"></span>
         <button class="btn btn-gold btn-sm" id="cartes-bulk-a4">Envoyer vers Format A4</button>
+        <button class="btn btn-primary btn-sm" id="cartes-bulk-download" aria-live="polite">Télécharger</button>
       </div>
     ` : ''}
 
@@ -1784,6 +1786,32 @@ function renderCartes(root) {
   root.querySelector('#cartes-search')?.addEventListener('input', renderList);
   root.querySelector('#cartes-filter-eglise')?.addEventListener('change', renderList);
   root.querySelector('#cartes-bulk-a4')?.addEventListener('click', () => setTab('a4'));
+  const downloadButton = root.querySelector('#cartes-bulk-download');
+  downloadButton.addEventListener('click', async () => {
+    const selection = cartes.filter(card => state.selectedCardIds.has(card.id));
+    if (!selection.length || downloadButton.disabled) return;
+    downloadButton.disabled = true;
+    try {
+      const archive = new JSZip();
+      for (const [index, card] of selection.entries()) {
+        downloadButton.textContent = `Préparation ${index + 1}/${selection.length}`;
+        const png = await renderCardPng(card, getEgliseById(card.egliseId));
+        const name = [card.nom, card.prenom].filter(Boolean).join('-')
+          .replace(/[^\p{L}\p{N}-]+/gu, '-').slice(0, 80) || 'carte';
+        archive.file(`${index + 1}-${name}.png`, await png.arrayBuffer());
+      }
+      downloadButton.textContent = 'Création du ZIP…';
+      const zip = await archive.generateAsync({ type: 'blob' });
+      downloadBlob(zip, 'BaptisCard-cartes.zip');
+    } catch (error) {
+      console.error(error);
+      showToast('Téléchargement impossible. Réessayez.', 'err');
+    } finally {
+      downloadButton.disabled = false;
+      downloadButton.textContent = 'Télécharger';
+    }
+  });
+
 
   renderList();
   updateBulkBar();
@@ -2452,6 +2480,21 @@ async function buildDenomInlineFontFaceCss() {
 }
 
 async function downloadCardAsImage(carteData, eglise, filename, scale = 4) {
+  downloadBlob(await renderCardPng(carteData, eglise, scale), filename);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+async function renderCardPng(carteData, eglise, scale = 4) {
   // Remote (Cloudinary) URLs referenced via <image href="..."> inside an SVG
   // that is itself loaded as a blob: URL will not resolve/paint reliably in
   // all browsers and leave the canvas tainted or blank. Inline everything as
@@ -2495,14 +2538,9 @@ async function downloadCardAsImage(carteData, eglise, filename, scale = 4) {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
     const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1.0));
-    const pngUrl = URL.createObjectURL(pngBlob);
-    const a = document.createElement('a');
-    a.href = pngUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(pngUrl), 30000);
+    canvas.width = canvas.height = 0;
+    if (!pngBlob) throw new Error('Impossible de générer le PNG');
+    return pngBlob;
   } finally {
     URL.revokeObjectURL(url);
   }
